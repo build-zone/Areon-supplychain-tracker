@@ -1,17 +1,9 @@
-import Form from './components/form';
+import SupplyChain from './components/supplyChainTracker';
 import Navbar from './components/navbar';
 import Information from './components/information';
-import ExtraInformation from './components/extraInformation';
 import Footer from './components/footer';
 
-import AOS from 'aos';
-import 'aos/dist/aos.css';
-import { useEffect } from 'react';
-
 export default function App() {
-  useEffect(() => {
-    AOS.init();
-  }, []);
 
   return (
     <>
@@ -21,15 +13,10 @@ export default function App() {
           <Information />
         </div>
         <div>
-          <Form />
+          <SupplyChain />
         </div>
-        {/* <div>
-          <ExtraInformation />
-        </div> */}
       </div>
       <Footer />
-
-      
     </>
   );
 }
