@@ -54,6 +54,12 @@ pub struct OrderDetails {
     approved_by: Option<AccountAddress>,
     status: Status,
 }
+#[derive(Serialize, SchemaType)]
+pub struct AddProductParams {
+    name: String,
+    location: String,
+    price: u64,
+}
 
 // Custom errors
 #[derive(Debug, PartialEq, Eq, Reject, Serialize, SchemaType)]
@@ -64,13 +70,13 @@ pub enum CustomContractError {
     InvalidOrderState,
     InsufficientPayment,
     InvalidParameter,
-    InvalidSenderAddress
+    InvalidSenderAddress,
 }
 
 // Contract implementation
 
 #[init(contract = "supply_chain_tracker")]
-fn init(_ctx: &InitContext, state_builder: &mut StateBuilder) -> InitResult<State> {
+fn init(_ctx: &InitContext, _state_builder: &mut StateBuilder) -> InitResult<State> {
     Ok(State {
         products: Vec::new(),
         orders: Vec::new(),
@@ -79,15 +85,22 @@ fn init(_ctx: &InitContext, state_builder: &mut StateBuilder) -> InitResult<Stat
     })
 }
 
-#[receive(contract = "supply_chain_tracker", name = "add_product", mutable)]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "add_product",
+    parameter = "AddProductParams",
+    mutable
+)]
 fn add_product(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), CustomContractError> {
     ensure!(
         ctx.sender().matches_account(&ctx.owner()),
         CustomContractError::Unauthorized
     );
 
-    let params: (String, String, Amount) = ctx.parameter_cursor().get().map_err(|_| CustomContractError::InvalidParameter)?;
-    let (name, location, price) = params;
+    let params: AddProductParams = ctx
+        .parameter_cursor()
+        .get()
+        .map_err(|_| CustomContractError::InvalidParameter)?;
 
     let state = host.state_mut();
     state.product_count += 1;
@@ -95,9 +108,9 @@ fn add_product(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Custo
 
     let product = Product {
         id: new_product_id,
-        name,
-        location,
-        price,
+        name: params.name,
+        location: params.location,
+        price: Amount::from_micro_ccd(params.price),
         status: Status::Available,
     };
 
@@ -106,13 +119,22 @@ fn add_product(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Custo
     Ok(())
 }
 
-#[receive(contract = "supply_chain_tracker", name = "order_product", payable, mutable)]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "order_product",
+    payable,
+    parameter = "ProductId",
+    mutable
+)]
 fn order_product(
-    ctx: &impl HasReceiveContext,
+    ctx: &ReceiveContext,
     host: &mut Host<State>,
     amount: Amount,
 ) -> Result<(), CustomContractError> {
-    let product_id: ProductId = ctx.parameter_cursor().get().map_err(|_| CustomContractError::InvalidParameter)?;
+    let product_id: ProductId = ctx
+        .parameter_cursor()
+        .get()
+        .map_err(|_| CustomContractError::InvalidParameter)?;
     let state = host.state_mut();
 
     // Convert sender to AccountAddress
@@ -121,7 +143,11 @@ fn order_product(
         _ => return Err(CustomContractError::InvalidSenderAddress),
     };
 
-    let product = state.products.iter().find(|p| p.id == product_id).ok_or(CustomContractError::ProductNotFound)?;
+    let product = state
+        .products
+        .iter()
+        .find(|p| p.id == product_id)
+        .ok_or(CustomContractError::ProductNotFound)?;
     ensure!(
         product.status == Status::Available,
         CustomContractError::InvalidOrderState
@@ -147,13 +173,22 @@ fn order_product(
     state.orders.push(order);
 
     // Update product status
-    let product = state.products.iter_mut().find(|p| p.id == product_id).ok_or(CustomContractError::ProductNotFound)?;
+    let product = state
+        .products
+        .iter_mut()
+        .find(|p| p.id == product_id)
+        .ok_or(CustomContractError::ProductNotFound)?;
     product.status = Status::Ordered;
 
     Ok(())
 }
 
-#[receive(contract = "supply_chain_tracker", name = "approve_order", mutable)]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "approve_order",
+    parameter = "OrderId",
+    mutable
+)]
 fn approve_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), CustomContractError> {
     let owner = ctx.owner();
     let sender = ctx.sender();
@@ -164,15 +199,27 @@ fn approve_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Cus
         _ => return Err(CustomContractError::InvalidSenderAddress),
     };
 
+    // ensure!(
+    //     sender_account_address == owner,
+    //     CustomContractError::Unauthorized
+    // );
+
     ensure!(
-        sender_account_address == owner,
+        sender.matches_account(&owner),
         CustomContractError::Unauthorized
     );
 
-    let order_id: OrderId = ctx.parameter_cursor().get().map_err(|_| CustomContractError::InvalidParameter)?;
+    let order_id: OrderId = ctx
+        .parameter_cursor()
+        .get()
+        .map_err(|_| CustomContractError::InvalidParameter)?;
     let state = host.state_mut();
 
-    let order = state.orders.iter_mut().find(|o| o.id == order_id).ok_or(CustomContractError::OrderNotFound)?;
+    let order = state
+        .orders
+        .iter_mut()
+        .find(|o| o.id == order_id)
+        .ok_or(CustomContractError::OrderNotFound)?;
     ensure!(
         order.status == Status::Ordered,
         CustomContractError::InvalidOrderState
@@ -184,8 +231,12 @@ fn approve_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Cus
     Ok(())
 }
 
-
-#[receive(contract = "supply_chain_tracker", name = "deliver_order", mutable)]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "deliver_order",
+    parameter = "OrderId",
+    mutable
+)]
 fn deliver_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), CustomContractError> {
     let owner = ctx.owner();
     let sender = ctx.sender();
@@ -195,10 +246,17 @@ fn deliver_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Cus
         CustomContractError::Unauthorized
     );
 
-    let order_id: OrderId = ctx.parameter_cursor().get().map_err(|_| CustomContractError::InvalidParameter)?;
+    let order_id: OrderId = ctx
+        .parameter_cursor()
+        .get()
+        .map_err(|_| CustomContractError::InvalidParameter)?;
     let state = host.state_mut();
 
-    let order = state.orders.iter_mut().find(|o| o.id == order_id).ok_or(CustomContractError::OrderNotFound)?;
+    let order = state
+        .orders
+        .iter_mut()
+        .find(|o| o.id == order_id)
+        .ok_or(CustomContractError::OrderNotFound)?;
     ensure!(
         order.status == Status::Shipped,
         CustomContractError::InvalidOrderState
@@ -210,9 +268,17 @@ fn deliver_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Cus
     Ok(())
 }
 
-#[receive(contract = "supply_chain_tracker", name = "cancel_order", mutable)]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "cancel_order",
+    parameter = "OrderId",
+    mutable
+)]
 fn cancel_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), CustomContractError> {
-    let order_id: OrderId = ctx.parameter_cursor().get().map_err(|_| CustomContractError::InvalidParameter)?;
+    let order_id: OrderId = ctx
+        .parameter_cursor()
+        .get()
+        .map_err(|_| CustomContractError::InvalidParameter)?;
     let state = host.state_mut();
 
     // Convert `ctx.sender()` to `AccountAddress`
@@ -221,7 +287,11 @@ fn cancel_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Cust
         _ => return Err(CustomContractError::InvalidSenderAddress),
     };
 
-    let order = state.orders.iter_mut().find(|o| o.id == order_id).ok_or(CustomContractError::OrderNotFound)?;
+    let order = state
+        .orders
+        .iter_mut()
+        .find(|o| o.id == order_id)
+        .ok_or(CustomContractError::OrderNotFound)?;
     ensure!(
         order.ordered_by == sender_account_address,
         CustomContractError::Unauthorized
@@ -234,23 +304,42 @@ fn cancel_order(ctx: &ReceiveContext, host: &mut Host<State>) -> Result<(), Cust
     order.status = Status::Cancelled;
 
     // Update product status
-    let product = state.products.iter_mut().find(|p| p.id == order.product_id).ok_or(CustomContractError::ProductNotFound)?;
+    let product = state
+        .products
+        .iter_mut()
+        .find(|p| p.id == order.product_id)
+        .ok_or(CustomContractError::ProductNotFound)?;
     product.status = Status::Available;
 
     Ok(())
 }
 
-
-#[receive(contract = "supply_chain_tracker", name = "get_order_details")]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "get_order_details",
+    parameter = "OrderId",
+    return_value = "OrderDetails"
+)]
 fn get_order_details(
     ctx: &ReceiveContext,
     host: &Host<State>,
 ) -> Result<OrderDetails, CustomContractError> {
-    let order_id: OrderId = ctx.parameter_cursor().get().map_err(|_| CustomContractError::InvalidParameter)?;
+    let order_id: OrderId = ctx
+        .parameter_cursor()
+        .get()
+        .map_err(|_| CustomContractError::InvalidParameter)?;
     let state = host.state();
 
-    let order = state.orders.iter().find(|o| o.id == order_id).ok_or(CustomContractError::OrderNotFound)?;
-    let product = state.products.iter().find(|p| p.id == order.product_id).ok_or(CustomContractError::ProductNotFound)?;
+    let order = state
+        .orders
+        .iter()
+        .find(|o| o.id == order_id)
+        .ok_or(CustomContractError::OrderNotFound)?;
+    let product = state
+        .products
+        .iter()
+        .find(|p| p.id == order.product_id)
+        .ok_or(CustomContractError::ProductNotFound)?;
 
     Ok(OrderDetails {
         order_id: order.id,
@@ -264,7 +353,11 @@ fn get_order_details(
     })
 }
 
-#[receive(contract = "supply_chain_tracker", name = "get_all_orders")]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "get_all_orders",
+    return_value = "Vec<OrderDetails>"
+)]
 fn get_all_orders(
     _ctx: &ReceiveContext,
     host: &Host<State>,
@@ -273,7 +366,11 @@ fn get_all_orders(
     let mut all_orders = Vec::new();
 
     for order in &state.orders {
-        let product = state.products.iter().find(|p| p.id == order.product_id).ok_or(CustomContractError::ProductNotFound)?;
+        let product = state
+            .products
+            .iter()
+            .find(|p| p.id == order.product_id)
+            .ok_or(CustomContractError::ProductNotFound)?;
         all_orders.push(OrderDetails {
             order_id: order.id,
             product_name: product.name.clone(),
@@ -289,29 +386,56 @@ fn get_all_orders(
     Ok(all_orders)
 }
 
-#[receive(contract = "supply_chain_tracker", name = "get_product_details")]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "get_product_details",
+    return_value = "Product",
+    parameter = "ProductId"
+)]
 fn get_product_details(
     ctx: &ReceiveContext,
     host: &Host<State>,
 ) -> Result<Product, CustomContractError> {
-    let product_id: ProductId = ctx.parameter_cursor().get().map_err(|_| CustomContractError::InvalidParameter)?;
+    let product_id: ProductId = ctx
+        .parameter_cursor()
+        .get()
+        .map_err(|_| CustomContractError::InvalidParameter)?;
     let state = host.state();
 
-    state.products.iter().find(|p| p.id == product_id).cloned().ok_or(CustomContractError::ProductNotFound)
+    let product = state
+        .products
+        .iter()
+        .find(|p| p.id == product_id)
+        .cloned()
+        .ok_or(CustomContractError::ProductNotFound)?;
+
+    Ok(product)
 }
 
-#[receive(contract = "supply_chain_tracker", name = "get_all_products")]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "get_all_products",
+    return_value = "Vec<Product>"
+)]
 fn get_all_products(_ctx: &ReceiveContext, host: &Host<State>) -> ReceiveResult<Vec<Product>> {
     let state = host.state();
     Ok(state.products.clone())
 }
 
-#[receive(contract = "supply_chain_tracker", name = "get_product_count")]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "get_product_count",
+    return_value = "u64"
+)]
 fn get_product_count(_ctx: &ReceiveContext, host: &Host<State>) -> ReceiveResult<u64> {
     Ok(host.state().product_count)
 }
 
-#[receive(contract = "supply_chain_tracker", name = "get_order_count")]
+#[receive(
+    contract = "supply_chain_tracker",
+    name = "get_order_count",
+    return_value = "u64"
+)]
 fn get_order_count(_ctx: &ReceiveContext, host: &Host<State>) -> ReceiveResult<u64> {
     Ok(host.state().order_count)
 }
