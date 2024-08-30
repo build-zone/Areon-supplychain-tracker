@@ -1,22 +1,23 @@
-import SupplyChain from './components/supplyChainTracker';
-import Navbar from './components/navbar';
-import Information from './components/information';
-import Footer from './components/footer';
+import SupplyChain from "./components/supplyChainTracker";
+import Navbar from "./components/navbar";
+import Information from "./components/information";
+import Footer from "./components/footer";
 
 export default function App() {
-
   return (
-    <>
+    <div className="h-screen border w-screen">
       <Navbar />
-      <div className="md:max-w-7xl mx-auto pt-32">
+      <div className=" h-[100%] mx-auto pt-32 flex flex-col justify-between border border-red-500">
         <div>
-          <Information />
+          <div>
+            <Information />
+          </div>
+          <div>
+            <SupplyChain />
+          </div>
         </div>
-        <div>
-          <SupplyChain />
-        </div>
+        <Footer />
       </div>
-      <Footer />
-    </>
+    </div>
   );
 }

@@ -1,218 +1,594 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Input, Select, Spinner, useToast } from '@chakra-ui/react';
+import { useState, useEffect, useCallback } from "react";
+import { Button, Input, Select } from "@chakra-ui/react";
+import { useWallet } from "../providers/WalletProvider";
+import { moduleSchemaFromBase64 } from "@concordium/react-components";
+import {
+  ContractAddress,
+  ReceiveName,
+  AccountTransactionType,
+  EntrypointName,
+  Energy,
+  CcdAmount,
+  AccountAddress,
+  SchemaVersion,
+  ContractName,
+  deserializeReceiveReturnValue,
+} from "@concordium/web-sdk";
+import { Buffer } from "buffer/";
+import {
+  CONTRACT_NAME,
+  MAX_CONTRACT_EXECUTION_ENERGY,
+  VERIFIER_URL,
+} from "../../config";
 
-const initialProducts = [
-  { id: 1, name: "Laptop", location: "USA", price: 1000, status: "Available" },
-  { id: 2, name: "Smartphone", location: "China", price: 500, status: "Available" },
-  { id: 3, name: "Tablet", location: "Japan", price: 300, status: "Available" },
-];
-
-const initialOrders = [
-  { id: 1, productId: 1, orderedBy: "0x1234...5678", approvedBy: null, deliveredTo: null, price: 1000, status: "Ordered" },
-  { id: 2, productId: 2, orderedBy: "0x2345...6789", approvedBy: "0x3456...7890", deliveredTo: null, price: 500, status: "Shipped" },
-];
+import toast from "react-hot-toast";
+import { detectConcordiumProvider } from "@concordium/browser-wallet-api-helpers";
+import { authorize, getChallenge } from "../utils";
 
 const SupplyChain = () => {
-  const [products, setProducts] = useState(initialProducts);
-  const [orders, setOrders] = useState(initialOrders);
-  const [itemId, setItemId] = useState('');
+  const [products, setProducts] = useState();
+  const [orders, setOrders] = useState();
+  const [itemId, setItemId] = useState("");
   const [itemDetails, setItemDetails] = useState(null);
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [loadingStates, setLoadingStates] = useState({
     search: false,
     order: false,
     create: false,
   });
   const [actionLoadingStates, setActionLoadingStates] = useState({});
-  const toast = useToast();
+  // const toast = useToast();
   // New state for creating product
   const [showCreateProduct, setShowCreateProduct] = useState(false);
-  const [newProductName, setNewProductName] = useState('');
-  const [newProductPrice, setNewProductPrice] = useState('');
-  const [newProductLocation, setNewProductLocation] = useState('');
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductPrice, setNewProductPrice] = useState("");
+  const [newProductLocation, setNewProductLocation] = useState("");
 
-  useEffect(() => {
-    // Simulating initial data fetch
-    setLoadingStates(prev => ({ ...prev, search: true }));
-    setTimeout(() => {
-      setLoadingStates(prev => ({ ...prev, search: false }));
-    }, 1000);
-  }, []);
+  const { rpc, contract, connection, account } = useWallet();
 
-  const getStatusText = (status) => {
+  // useEffect(() => {
+  //   // Simulating initial data fetch
+  //   setLoadingStates((prev) => ({ ...prev, search: true }));
+  //   setTimeout(() => {
+  //     setLoadingStates((prev) => ({ ...prev, search: false }));
+  //   }, 1000);
+  // }, []);
+
+  const getStatusText = (statusObject) => {
     const statusMap = {
-      "Ordered": "Ordered",
-      "Approved": "Approved",
-      "Shipped": "Shipped",
-      "Delivered": "Delivered",
-      "Cancelled": "Cancelled",
+      Ordered: "Ordered",
+      Approved: "Approved",
+      Shipped: "Shipped",
+      Delivered: "Delivered",
+      Cancelled: "Cancelled",
     };
-    return statusMap[status] || "";
+
+    // Extract the key from the passed object
+    const statusKey = Object.keys(statusObject)[0];
+
+    // Return the corresponding value from the map or an empty string if not found
+    return statusMap[statusKey] || "";
   };
 
   const displayPartialAddress = (address) => {
     if (address && address.length > 7) {
-      return `${address.substring(0, 3)}...${address.substring(address.length - 4)}`;
+      return `${address.substring(0, 3)}...${address.substring(
+        address.length - 4
+      )}`;
+    } else if (address && Object.keys(address) == `None`) {
+      return "";
+    } else if (address && Object.keys(address) == `Some`) {
+      let val = address.Some[0];
+      return `${val.substring(0, 3)}...${val.substring(val.length - 4)}`;
     }
-    return address || "";
   };
 
   const getItem = () => {
-    setLoadingStates(prev => ({ ...prev, search: true }));
-    setTimeout(() => {
-      const foundOrder = orders.find(order => order.id === parseInt(itemId));
-      if (foundOrder) {
-        const product = products.find(p => p.id === foundOrder.productId);
-        setItemDetails({
-          id: foundOrder.id,
-          name: product.name,
-          status: foundOrder.status,
-          orderedBy: foundOrder.orderedBy,
-          approvedBy: foundOrder.approvedBy,
-          deliveredTo: foundOrder.deliveredTo,
-        });
-      } else {
-        setItemDetails(null);
-        toast({
-            
-            description: `Order ID does not!`,
-            status: "error",
-          });
-      }
-      setLoadingStates(prev => ({ ...prev, search: false }));
-    }, 500);
-  };
-
-  const orderItem = () => {
-    setLoadingStates(prev => ({ ...prev, order: true }));
-    setTimeout(() => {
-      const selectedProduct = products.find(p => p.id === parseInt(selectedProductId));
-      if (selectedProduct) {
-        const newOrder = {
-          id: orders.length + 1,
-          productId: selectedProduct.id,
-          orderedBy: "0x" + Math.random().toString(16).substr(2, 8) + "..." + Math.random().toString(16).substr(2, 8),
-          approvedBy: null,
-          deliveredTo: null,
-          price: selectedProduct.price,
-          status: "Ordered",
-        };
-        setOrders([...orders, newOrder]);
-        setSelectedProductId('');
-      }
-      setLoadingStates(prev => ({ ...prev, order: false }));
-      toast({
-        description: `Order Successful`,
-        status: "success",
-      });
-    }, 500);
-  };
-
-  const createProduct = () => {
-    if (!newProductName.trim() || !newProductPrice.trim() || !newProductLocation.trim()) {
-      toast({
-        description: "All fields are required to create a new product.",
-        status: "error",
-      });
-      return;
-    }
-    
-    const price = parseFloat(newProductPrice);
-    if (isNaN(price) || price <= 0) {
-      toast({
-        description: "Please enter a valid positive number for the price.",
-        status: "error",
-      });
-      return;
-    }
-
-    setLoadingStates(prev => ({ ...prev, create: true }));
-    setTimeout(() => {
-      const newProduct = {
-        id: products.length + 1,
-        name: newProductName.trim(),
-        location: newProductLocation.trim(),
-        price: price,
-        status: "Available",
-      };
-      setProducts([...products, newProduct]);
-      console.log('New Product', products)
-      setNewProductName('');
-      setNewProductPrice('');
-      setNewProductLocation('');
-      setShowCreateProduct(false);
-      setLoadingStates(prev => ({ ...prev, create: false }));
-      toast({
-        description: `${newProduct.name} has been added to the inventory.`,
-        status: "success",
-      });
-    }, 500);
+    const item = orders.find(
+      (order) => Number(order.order_id) === Number(itemId)
+    );
+    setItemDetails(item);
+    console.log(item);
   };
 
   const isCreateButtonDisabled = () => {
-    return !newProductName.trim() || !newProductPrice.trim() || !newProductLocation.trim() || 
-           isNaN(parseFloat(newProductPrice)) || parseFloat(newProductPrice) <= 0;
+    return (
+      !newProductName.trim() ||
+      !newProductPrice.trim() ||
+      !newProductLocation.trim() ||
+      isNaN(parseFloat(newProductPrice)) ||
+      parseFloat(newProductPrice) <= 0
+    );
   };
 
-  const approveItem = (id) => {
-    setActionLoadingStates(prev => ({ ...prev, [id]: { ...prev[id], approve: true } }));
-    setTimeout(() => {
-      setOrders(orders.map(order => 
-        order.id === id ? { ...order, status: "Approved", approvedBy: "0x" + Math.random().toString(16).substr(2, 8) + "..." + Math.random().toString(16).substr(2, 8) } : order
-      ));
-      setActionLoadingStates(prev => ({ ...prev, [id]: { ...prev[id], approve: false } }));
-      toast({
-        title: "Product Approved",
-        description: `Ready to be shipped!`,
-        status: "success",
+  const createProduct = async () => {
+    if (
+      !newProductName.trim() ||
+      !newProductPrice.trim() ||
+      !newProductLocation.trim()
+    ) {
+      toast.error("All fields are required to create a new product");
+      return;
+    }
+    const loading = toast.loading("Creating campaign...");
+    try {
+      const schema = await rpc?.getEmbeddedSchema(contract?.sourceModule);
+
+      // convert schema to base64……..
+      const schemaToBase64 = btoa(
+        new Uint8Array(schema).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
+
+      // create params……..
+      const params = {
+        parameters: {
+          name: newProductName,
+          location: "DK",
+          price: Number(newProductPrice),
+        },
+        schema: moduleSchemaFromBase64(schemaToBase64),
+      };
+
+      const transaction = await connection?.signAndSendTransaction(
+        account,
+        AccountTransactionType.Update,
+        {
+          amount: CcdAmount.fromCcd(0),
+          address: ContractAddress.create(contract.index, 0),
+          receiveName: ReceiveName.create(
+            contract.name,
+            EntrypointName.fromString("add_product")
+          ),
+          maxContractExecutionEnergy: Energy.create(
+            MAX_CONTRACT_EXECUTION_ENERGY
+          ),
+        },
+        params
+      );
+      transaction &&
+        toast.success("Product successfully created", {
+          id: loading,
+        });
+      setTimeout(async () => {
+        await getProducts();
+      }, 4000);
+      return transaction;
+    } catch (error) {
+      toast.error("Error creating product", {
+        id: loading,
       });
-    }, 500);
+      console.error(error);
+    }
   };
 
-  const shipItem = (id) => {
-    setActionLoadingStates(prev => ({ ...prev, [id]: { ...prev[id], ship: true } }));
-    setTimeout(() => {
-      setOrders(orders.map(order => 
-        order.id === id ? { ...order, status: "Shipped" } : order
-      ));
-      setActionLoadingStates(prev => ({ ...prev, [id]: { ...prev[id], ship: false } }));
-      toast({
-        description: `Product ready to be shipped!`,
-        status: "success",
+  const getProducts = async () => {
+    toast.dismiss();
+    const loading = toast.loading("Getting products...");
+
+    const receiveName = "get_all_products";
+
+    try {
+      if (contract) {
+        const result = await rpc?.invokeContract({
+          contract: contract && ContractAddress?.create(contract?.index, 0),
+          method:
+            contract &&
+            ReceiveName?.create(
+              contract?.name,
+              EntrypointName?.fromString(receiveName)
+            ),
+          invoker: account && AccountAddress?.fromJSON(account),
+        });
+        console.log(result.returnValue);
+        const buffer = Buffer?.from(result?.returnValue?.buffer).buffer;
+        const contract_schema = await rpc?.getEmbeddedSchema(
+          contract?.sourceModule
+        );
+        const newschema = Buffer?.from(contract_schema).buffer;
+
+        console.log(newschema);
+        const name = ContractName?.fromString(CONTRACT_NAME);
+        const entry_point = EntrypointName?.fromString(receiveName);
+        console.log(contract_schema);
+
+        const values = await deserializeReceiveReturnValue(
+          buffer,
+          contract_schema,
+          name,
+          entry_point,
+          SchemaVersion?.V1
+        );
+        console.log("values", values);
+        setProducts(values);
+        values &&
+          toast.success("Fetched Products", {
+            id: loading,
+          });
+
+        return values;
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      toast.error("Error fetching products", {
+        id: loading,
       });
-    }, 500);
+    }
   };
 
-  const cancelItem = (id) => {
-    setActionLoadingStates(prev => ({ ...prev, [id]: { ...prev[id], cancel: true } }));
-    setTimeout(() => {
-      setOrders(orders.map(order => 
-        order.id === id ? { ...order, status: "Cancelled" } : order
-      ));
-      setActionLoadingStates(prev => ({ ...prev, [id]: { ...prev[id], cancel: false } }));
-      toast({
-        description: `Product removed successfully!`,
-        status: "error",
+  const orderItem = async (product) => {
+    const loading = toast.loading("Ordering product");
+
+    console.log(product);
+
+    try {
+      const schema = await rpc?.getEmbeddedSchema(contract?.sourceModule);
+
+      // convert schema to base64……..
+      const schemaToBase64 = btoa(
+        new Uint8Array(schema).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
+
+      // create params……..
+      const params = {
+        parameters: Number(product?.id),
+        schema: moduleSchemaFromBase64(schemaToBase64),
+      };
+
+      const transaction = await connection?.signAndSendTransaction(
+        account,
+        AccountTransactionType.Update,
+        {
+          amount: CcdAmount.fromCcd(Number(product.price)),
+          address: ContractAddress.create(contract.index, 0),
+          receiveName: ReceiveName.create(
+            contract.name,
+            EntrypointName.fromString("order_product")
+          ),
+          maxContractExecutionEnergy: Energy.create(
+            MAX_CONTRACT_EXECUTION_ENERGY
+          ),
+        },
+        params
+      );
+      transaction &&
+        toast.success("Order Successfull", {
+          id: loading,
+        });
+      setTimeout(async () => {
+        await getAllOrders();
+      }, 4000);
+      return transaction;
+    } catch (error) {
+      toast.error("Error ordering product", {
+        id: loading,
       });
-    }, 500);
+      console.error(error);
+    }
   };
+
+  const cancelOrder = async (id) => {
+    const loading = toast.loading("Cancelling order...");
+
+    setActionLoadingStates((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], cancel: true },
+    }));
+
+    try {
+      const schema = await rpc?.getEmbeddedSchema(contract?.sourceModule);
+
+      // convert schema to base64……..
+      const schemaToBase64 = btoa(
+        new Uint8Array(schema).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
+
+      // create params……..
+      const params = {
+        parameters: Number(id),
+        schema: moduleSchemaFromBase64(schemaToBase64),
+      };
+
+      const transaction = await connection?.signAndSendTransaction(
+        account,
+        AccountTransactionType.Update,
+        {
+          amount: CcdAmount.fromCcd(0),
+          address: ContractAddress.create(contract.index, 0),
+          receiveName: ReceiveName.create(
+            contract.name,
+            EntrypointName.fromString("cancel_order")
+          ),
+          maxContractExecutionEnergy: Energy.create(
+            MAX_CONTRACT_EXECUTION_ENERGY
+          ),
+        },
+        params
+      );
+      transaction &&
+        toast.success("Order Cancelled", {
+          id: loading,
+        });
+      setActionLoadingStates((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], cancel: false },
+      }));
+      setTimeout(async () => {
+        await getAllOrders();
+      }, 4000);
+      return transaction;
+    } catch (error) {
+      setActionLoadingStates((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], cancel: false },
+      }));
+      toast.error("Error cancelling order", {
+        id: loading,
+      });
+      console.error(error);
+    }
+  };
+
+  const approveOrder = async (id) => {
+    const loading = toast.loading("Getting order approved...");
+
+    setActionLoadingStates((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], approve: true },
+    }));
+
+    try {
+      const schema = await rpc?.getEmbeddedSchema(contract?.sourceModule);
+
+      // convert schema to base64……..
+      const schemaToBase64 = btoa(
+        new Uint8Array(schema).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
+
+      // create params……..
+      const params = {
+        parameters: Number(id),
+        schema: moduleSchemaFromBase64(schemaToBase64),
+      };
+
+      const transaction = await connection?.signAndSendTransaction(
+        account,
+        AccountTransactionType.Update,
+        {
+          amount: CcdAmount.fromCcd(0),
+          address: ContractAddress.create(contract.index, 0),
+          receiveName: ReceiveName.create(
+            contract.name,
+            EntrypointName.fromString("approve_order")
+          ),
+          maxContractExecutionEnergy: Energy.create(
+            MAX_CONTRACT_EXECUTION_ENERGY
+          ),
+        },
+        params
+      );
+      transaction &&
+        toast.success("Order Approved", {
+          id: loading,
+        });
+      setActionLoadingStates((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], approve: false },
+      }));
+      setTimeout(async () => {
+        await getAllOrders();
+      }, 4000);
+      return transaction;
+    } catch (error) {
+      setActionLoadingStates((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], approve: false },
+      }));
+      toast.error("Error approving order", {
+        id: loading,
+      });
+      console.error(error);
+    }
+  };
+  const deliverOrder = async (id) => {
+    const loading = toast.loading("Delivering order...");
+
+    setActionLoadingStates((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], deliver: true },
+    }));
+
+    try {
+      const schema = await rpc?.getEmbeddedSchema(contract?.sourceModule);
+
+      // convert schema to base64……..
+      const schemaToBase64 = btoa(
+        new Uint8Array(schema).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
+
+      // create params……..
+      const params = {
+        parameters: Number(id),
+        schema: moduleSchemaFromBase64(schemaToBase64),
+      };
+
+      const transaction = await connection?.signAndSendTransaction(
+        account,
+        AccountTransactionType.Update,
+        {
+          amount: CcdAmount.fromCcd(0),
+          address: ContractAddress.create(contract.index, 0),
+          receiveName: ReceiveName.create(
+            contract.name,
+            EntrypointName.fromString("deliver_order")
+          ),
+          maxContractExecutionEnergy: Energy.create(
+            MAX_CONTRACT_EXECUTION_ENERGY
+          ),
+        },
+        params
+      );
+      transaction &&
+        toast.success("Order Delivered", {
+          id: loading,
+        });
+      setActionLoadingStates((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], deliver: false },
+      }));
+      setTimeout(async () => {
+        await getAllOrders();
+      }, 4000);
+      return transaction;
+    } catch (error) {
+      setActionLoadingStates((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], deliver: false },
+      }));
+      toast.error("Error approving order", {
+        id: loading,
+      });
+      console.error(error);
+    }
+  };
+
+  const getAllOrders = async () => {
+    // toast.dismiss();
+    const loading = toast.loading("Getting orders...");
+
+    const receiveName = "get_all_orders";
+
+    try {
+      if (contract) {
+        const result = await rpc?.invokeContract({
+          contract: contract && ContractAddress?.create(contract?.index, 0),
+          method:
+            contract &&
+            ReceiveName?.create(
+              contract?.name,
+              EntrypointName?.fromString(receiveName)
+            ),
+          invoker: account && AccountAddress?.fromJSON(account),
+        });
+        console.log(result.returnValue);
+        const buffer = Buffer?.from(result?.returnValue?.buffer).buffer;
+        const contract_schema = await rpc?.getEmbeddedSchema(
+          contract?.sourceModule
+        );
+        const newschema = Buffer?.from(contract_schema).buffer;
+
+        console.log(newschema);
+        const name = ContractName?.fromString(CONTRACT_NAME);
+        const entry_point = EntrypointName?.fromString(receiveName);
+
+        const values = await deserializeReceiveReturnValue(
+          buffer,
+          contract_schema,
+          name,
+          entry_point,
+          SchemaVersion?.V1
+        );
+        console.log("values", values);
+        setOrders(values);
+        values &&
+          toast.success("Fetched Orders", {
+            id: loading,
+          });
+        return values;
+      }
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      toast.error("Error fetching orders", {
+        id: loading,
+      });
+    }
+  };
+
+  const handleAuthorize = useCallback(
+    async (product) => {
+      try {
+        const statement = [
+          {
+            type: "AttributeInSet",
+            attributeTag: "nationality",
+            set: [product?.location],
+          },
+          // {
+          //   type: "AttributeInRange",
+          //   attributeTag: "dob",
+          //   lower: lower,
+          //   upper: upper,
+          // },
+        ];
+
+        if (!account) {
+          throw new Error("No account available");
+        }
+
+        const provider = await detectConcordiumProvider();
+        const challenge = await getChallenge(VERIFIER_URL, account);
+        const proof = await provider.requestIdProof(
+          account,
+          statement,
+          challenge
+        );
+
+        const newAuthToken = await authorize(
+          VERIFIER_URL,
+          challenge,
+          proof,
+          statement
+        );
+
+        console.log(newAuthToken);
+        if (newAuthToken) {
+          await orderItem(product);
+        } else {
+          toast.error("Failed to get authorization token");
+        }
+      } catch (error) {
+        console.error("Authorization failed:", error);
+        toast.error("Authorization failed: " + error.message);
+      }
+    },
+    [account]
+  );
+
+  useEffect(() => {
+    if (rpc && contract && account) {
+      getProducts();
+      getAllOrders();
+    }
+  }, [rpc, contract, account]);
 
   return (
-    <div className="m-5 p-5 border rounded-lg shadow-md">
-      <div className="mb-5 flex justify-between items-center">
-        <div className="w-1/4">
+    <div className="m-5 p-5 border rounded-lg shadow-md ">
+      <div className="mb-5 flex flex-col sm:flex-row gap-2  justify-between items-center w-full">
+        <div className="sm:w-1/4 w-[100%]">
           <Select
-            value={showCreateProduct ? 'create' : 'order'}
-            onChange={(e) => setShowCreateProduct(e.target.value === 'create')}
-            >
+            value={showCreateProduct ? "create" : "order"}
+            onChange={(e) => setShowCreateProduct(e.target.value === "create")}
+          >
             <option value="order">Order Product</option>
             <option value="create">Create Product</option>
-            </Select>
-
-
+          </Select>
         </div>
         {showCreateProduct ? (
-          <div className="w-2/3 flex space-x-3">
+          <div className="w-full sm:w-2/3 flex flex-col sm:flex-row gap-3">
             <Input
               value={newProductName}
               onChange={(e) => setNewProductName(e.target.value)}
@@ -237,27 +613,40 @@ const SupplyChain = () => {
               isLoading={loadingStates.create}
               loadingText="Creating"
               disabled={isCreateButtonDisabled()}
-              className="px-6"
+              className="px-6 sm:w-[50%] "
             >
               Create
             </Button>
           </div>
         ) : (
-          <div className="w-2/4 flex space-x-3">
+          <div className="sm:w-2/4 flex space-x-3">
             <Select
-              value={selectedProductId}
-              onChange={(e) => setSelectedProductId(e.target.value)}
+              // value={selectedProduct}
+              onChange={(e) => {
+                console.log(e.target.value);
+                setSelectedProduct(
+                  products?.find(
+                    (product) => Number(product.id) === Number(e.target.value)
+                  )
+                );
+              }}
               placeholder="Select a product"
             >
-              {products.map(product => (
-                <option key={product.id} value={product.id}>{product.name}</option>
-              ))}
+              {products &&
+                products?.map((product) => (
+                  <option key={product?.id} value={Number(product?.id)}>
+                    {product?.name}
+                  </option>
+                ))}
             </Select>
+
             <Button
-              onClick={orderItem}
+              // onClick={() => orderItem(selectedProduct)}
+              onClick={() => handleAuthorize(selectedProduct)}
+              // onClick={() => console.log(selectedProduct)}
               isLoading={loadingStates.order}
               loadingText="Ordering"
-              disabled={!selectedProductId}
+              disabled={!selectedProduct}
             >
               Order
             </Button>
@@ -265,7 +654,7 @@ const SupplyChain = () => {
         )}
       </div>
       <div className="mb-5 flex justify-between items-center">
-        <div className="w-1/2 flex space-x-3">
+        <div className="sm:w-1/2 flex space-x-3">
           <Input
             value={itemId}
             onChange={(e) => setItemId(e.target.value)}
@@ -273,7 +662,7 @@ const SupplyChain = () => {
             type="number"
           />
           <Button
-            onClick={getItem}
+            onClick={() => getItem(itemId)}
             isLoading={loadingStates.search}
             loadingText="Searching"
             disabled={itemId === ""}
@@ -285,60 +674,120 @@ const SupplyChain = () => {
 
       {itemDetails && (
         <div className="mb-5 p-4 border rounded">
-          <h3 className="font-bold">Item Details:</h3>
-          <p>ID: {itemDetails.id}</p>
-          <p>Name: {itemDetails.name}</p>
-          <p>Status: {getStatusText(itemDetails.status)}</p>
-          <p>Ordered By: {displayPartialAddress(itemDetails.orderedBy)}</p>
-          <p>Approved By: {displayPartialAddress(itemDetails.approvedBy)}</p>
-          <p>Delivered To: {displayPartialAddress(itemDetails.deliveredTo)}</p>
+          <h3 className="font-bold text-lg">Item Details:</h3>
+          <p>
+            <span className="font-bold">ID</span>:{" "}
+            {Number(itemDetails.order_id)}
+          </p>
+          <p>
+            <span className="font-bold">Name</span>: {itemDetails.product_name}
+          </p>
+          <p>
+            <span className="font-bold">Status</span>:{" "}
+            {getStatusText(itemDetails.status)}
+          </p>
+          <p>
+            <span className="font-bold">Ordered By</span>:{" "}
+            {displayPartialAddress(itemDetails.ordered_by)}
+          </p>
+          <p>
+            <span className="font-bold">Approved By</span>:{" "}
+            {displayPartialAddress(itemDetails.approved_by)}
+          </p>
+          <p>
+            <span className="font-bold">Delivered To</span>:{" "}
+            {displayPartialAddress(itemDetails.delivered_to)}
+          </p>
         </div>
       )}
-
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            <th className="border p-2">ID</th>
-            <th className="border p-2">Name</th>
-            <th className="border p-2">Location</th>
-            <th className="border p-2">Price</th>
-            <th className="border p-2">Status</th>
-            <th className="border p-2">Ordered by</th>
-            <th className="border p-2">Approved by</th>
-            <th className="border p-2">Delivered to</th>
-            <th className="border p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => {
-            const product = products.find(p => p.id === order.productId);
-            console.log(product, "check...")
-            return (
-              <tr key={order.id}>
-                <td className="border p-2">{order.id}</td>
-                <td className="border p-2">{product.name}</td>
-                <td className="border p-2">{product.location}</td>
-                <td className="border p-2">${order.price}</td>
-                <td className="border p-2">{getStatusText(order.status)}</td>
-                <td className="border p-2">{displayPartialAddress(order.orderedBy)}</td>
-                <td className="border p-2">{displayPartialAddress(order.approvedBy)}</td>
-                <td className="border p-2">{displayPartialAddress(order.deliveredTo)}</td>
-                <td className="border p-2">
-                  {order.status === "Ordered" && (
-                    <>
-                      <Button size="sm" colorScheme="red" onClick={() => cancelItem(order.id)} isLoading={actionLoadingStates[order.id]?.cancel}>Cancel</Button>
-                      <Button size="sm" colorScheme="green" onClick={() => approveItem(order.id)} isLoading={actionLoadingStates[order.id]?.approve} ml={2}>Approve</Button>
-                    </>
-                  )}
-                  {order.status === "Approved" && (
-                    <Button size="sm" colorScheme="blue" onClick={() => shipItem(order.id)} isLoading={actionLoadingStates[order.id]?.ship}>Ship Product</Button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="w-full overflow-x-scroll">
+        <table className="w-full border-collapse ">
+          <thead>
+            <tr>
+              <th className="border p-2">ID</th>
+              <th className="border p-2">Name</th>
+              <th className="border p-2">Location</th>
+              <th className="border p-2">Price(CCD)</th>
+              <th className="border p-2">Status</th>
+              <th className="border p-2">Ordered by</th>
+              <th className="border p-2">Approved by</th>
+              <th className="border p-2">Delivered to</th>
+              <th className="border p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders?.map((order) => {
+              const product = products?.find((p) => p.id === order.productId);
+              console.log(product, "check...");
+              return (
+                <tr key={order.order_id}>
+                  <td className="border p-2">{Number(order?.order_id)}</td>
+                  <td className="border p-2">{order?.product_name}</td>
+                  <td className="border p-2">{order?.product_location}</td>
+                  <td className="border p-2"> {order?.price}</td>
+                  <td className="border p-2">{getStatusText(order?.status)}</td>
+                  <td className="border p-2">
+                    {displayPartialAddress(order.ordered_by)}
+                  </td>
+                  <td className="border p-2">
+                    {displayPartialAddress(order.approved_by)}
+                  </td>
+                  <td className="border p-2">
+                    {displayPartialAddress(order.delivered_to)}
+                  </td>
+                  <td className="p-2 border">
+                    <div className="flex items-center justify-center">
+                      {getStatusText(order.status) === "Ordered" && (
+                        <>
+                          <Button
+                            size="sm"
+                            colorScheme="red"
+                            onClick={() => cancelOrder(order.order_id)}
+                            isLoading={
+                              actionLoadingStates[order.order_id]?.cancel
+                            }
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            colorScheme="green"
+                            onClick={() => approveOrder(order.order_id)}
+                            isLoading={actionLoadingStates[order.id]?.approve}
+                            ml={2}
+                          >
+                            Approve
+                          </Button>
+                        </>
+                      )}
+                      {getStatusText(order.status) === "Shipped" && (
+                        <Button
+                          size="sm"
+                          colorScheme="blue"
+                          onClick={() => deliverOrder(order.order_id)}
+                          isLoading={actionLoadingStates[order.id]?.deliver}
+                        >
+                          Deliver Product
+                        </Button>
+                      )}
+                      {getStatusText(order.status) === "Delivered" && (
+                        <div>
+                          <p>Product delivered!</p>
+                        </div>
+                      )}
+                      {getStatusText(order.status) === "Cancelled" && (
+                        <div>
+                          <p>Order cancelled!</p>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

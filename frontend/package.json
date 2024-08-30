@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build-verifier": "cargo build --manifest-path=verifier/Cargo.toml --release",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "start": "./verifier/target/debug/supply-chain-verifier --node http://node.testnet.concordium.com:20000 --port 8100 --log-level debug --public-folder public",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -15,12 +17,16 @@
     "@emotion/styled": "^11.11.0",
     "@metamask/detect-provider": "^2.0.0",
     "aos": "^2.3.4",
+    "buffer": "^6.0.3",
     "framer-motion": "^10.15.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
     "web-vitals": "^3.4.0"
   },
   "devDependencies": {
+    "@concordium/browser-wallet-api-helpers": "^3.0.1",
+    "@concordium/react-components": "^0.6.0",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.0.3",
