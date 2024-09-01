@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button, Input, Select } from "@chakra-ui/react";
 import { useWallet } from "../providers/WalletProvider";
 import { moduleSchemaFromBase64 } from "@concordium/react-components";
@@ -24,6 +24,8 @@ import {
 import toast from "react-hot-toast";
 import { detectConcordiumProvider } from "@concordium/browser-wallet-api-helpers";
 import { authorize, getChallenge } from "../utils";
+import { countries } from "countries-list";
+import ReactSelect from "react-select";
 
 const SupplyChain = () => {
   const [products, setProducts] = useState();
@@ -42,17 +44,9 @@ const SupplyChain = () => {
   const [showCreateProduct, setShowCreateProduct] = useState(false);
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
-  const [newProductLocation, setNewProductLocation] = useState("");
+  const [newProductLocation, setNewProductLocation] = useState();
 
   const { rpc, contract, connection, account } = useWallet();
-
-  // useEffect(() => {
-  //   // Simulating initial data fetch
-  //   setLoadingStates((prev) => ({ ...prev, search: true }));
-  //   setTimeout(() => {
-  //     setLoadingStates((prev) => ({ ...prev, search: false }));
-  //   }, 1000);
-  // }, []);
 
   const getStatusText = (statusObject) => {
     const statusMap = {
@@ -95,7 +89,7 @@ const SupplyChain = () => {
     return (
       !newProductName.trim() ||
       !newProductPrice.trim() ||
-      !newProductLocation.trim() ||
+      // !newProductLocation.trim() ||
       isNaN(parseFloat(newProductPrice)) ||
       parseFloat(newProductPrice) <= 0
     );
@@ -105,12 +99,13 @@ const SupplyChain = () => {
     if (
       !newProductName.trim() ||
       !newProductPrice.trim() ||
-      !newProductLocation.trim()
+      // !newProductLocation.trim()
+      newProductLocation.length === 0
     ) {
       toast.error("All fields are required to create a new product");
       return;
     }
-    const loading = toast.loading("Creating campaign...");
+    const loading = toast.loading("Creating product...");
     try {
       const schema = await rpc?.getEmbeddedSchema(contract?.sourceModule);
 
@@ -126,7 +121,7 @@ const SupplyChain = () => {
       const params = {
         parameters: {
           name: newProductName,
-          location: "DK",
+          location: newProductLocation,
           price: Number(newProductPrice),
         },
         schema: moduleSchemaFromBase64(schemaToBase64),
@@ -520,19 +515,20 @@ const SupplyChain = () => {
 
   const handleAuthorize = useCallback(
     async (product) => {
+      const locationSet = product.location.map((item) => item.value);
       try {
         const statement = [
           {
             type: "AttributeInSet",
             attributeTag: "nationality",
-            set: [product?.location],
+            set: locationSet,
           },
-          // {
-          //   type: "AttributeInRange",
-          //   attributeTag: "dob",
-          //   lower: lower,
-          //   upper: upper,
-          // },
+          {
+            type: "AttributeInRange",
+            attributeTag: "dob",
+            lower: "18000101",
+            upper: "20060902",
+          },
         ];
 
         if (!account) {
@@ -564,6 +560,7 @@ const SupplyChain = () => {
         console.error("Authorization failed:", error);
         toast.error("Authorization failed: " + error.message);
       }
+      console.log(product);
     },
     [account]
   );
@@ -575,6 +572,19 @@ const SupplyChain = () => {
     }
   }, [rpc, contract, account]);
 
+  const countryOptions = useMemo(
+    () =>
+      Object.entries(countries)
+        .map(([code, country]) => ({
+          value: code,
+          label: country.name,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    []
+  );
+
+  console.log(newProductLocation);
+
   return (
     <div className="m-5 p-5 border rounded-lg shadow-md ">
       <div className="mb-5 flex flex-col sm:flex-row gap-2  justify-between items-center w-full">
@@ -582,6 +592,7 @@ const SupplyChain = () => {
           <Select
             value={showCreateProduct ? "create" : "order"}
             onChange={(e) => setShowCreateProduct(e.target.value === "create")}
+            // options={creatorOrderOption}
           >
             <option value="order">Order Product</option>
             <option value="create">Create Product</option>
@@ -602,10 +613,14 @@ const SupplyChain = () => {
               type="number"
               required
             />
-            <Input
+            <ReactSelect
+              options={countryOptions}
               value={newProductLocation}
-              onChange={(e) => setNewProductLocation(e.target.value)}
-              placeholder="Location"
+              isMulti
+              onChange={(selectedOption) => {
+                setNewProductLocation(selectedOption);
+              }}
+              placeholder="Select Country"
               required
             />
             <Button
@@ -683,6 +698,16 @@ const SupplyChain = () => {
             <span className="font-bold">Name</span>: {itemDetails.product_name}
           </p>
           <p>
+            <span className="font-bold">Location</span>:{" "}
+            {/* {itemDetails.product_name} */}
+            {itemDetails?.product_location.map((item, index, array) => (
+              <span key={item.value}>
+                {item.label}
+                {index < array.length - 1 && ", "}
+              </span>
+            ))}
+          </p>
+          <p>
             <span className="font-bold">Status</span>:{" "}
             {getStatusText(itemDetails.status)}
           </p>
@@ -723,7 +748,14 @@ const SupplyChain = () => {
                 <tr key={order.order_id}>
                   <td className="border p-2">{Number(order?.order_id)}</td>
                   <td className="border p-2">{order?.product_name}</td>
-                  <td className="border p-2">{order?.product_location}</td>
+                  <td className="border p-2">
+                    {order?.product_location.map((item, index, array) => (
+                      <span key={item.value}>
+                        {item.label}
+                        {index < array.length - 1 && ", "}
+                      </span>
+                    ))}
+                  </td>
                   <td className="border p-2"> {order?.price}</td>
                   <td className="border p-2">{getStatusText(order?.status)}</td>
                   <td className="border p-2">

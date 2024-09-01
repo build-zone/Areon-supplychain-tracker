@@ -27,9 +27,16 @@ pub enum Status {
 pub struct Product {
     id: ProductId,
     name: String,
-    location: String,
+    location: Vec<Location>,
     price: Amount,
     status: Status,
+}
+
+#[derive(Serialize, SchemaType, Clone, Debug)]
+
+pub struct Location {
+    value: String,
+    label: String,
 }
 
 #[derive(Serialize, SchemaType, Clone, Debug)]
@@ -47,7 +54,7 @@ pub struct Order {
 pub struct OrderDetails {
     order_id: OrderId,
     product_name: String,
-    product_location: String,
+    product_location: Vec<Location>,
     price: Amount,
     delivered_to: Option<AccountAddress>,
     ordered_by: AccountAddress,
@@ -57,7 +64,7 @@ pub struct OrderDetails {
 #[derive(Serialize, SchemaType)]
 pub struct AddProductParams {
     name: String,
-    location: String,
+    location: Vec<Location>,
     price: u64,
 }
 
