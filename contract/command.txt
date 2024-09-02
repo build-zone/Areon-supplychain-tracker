@@ -1,0 +1,1 @@
+cargo concordium build --schema-embed --out dist/supply_chain_tracker.module.wasm.v1 --schema-out dist/schema.bin
