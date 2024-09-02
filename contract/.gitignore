@@ -1,0 +1,18 @@
+# Build artifacts
+/target/
+
+# Dependencies
+/Cargo.lock
+
+# Rust formatter
+/.rustfmt.toml
+
+# IDE configurations (you can adjust these based on your IDE)
+.vscode/
+.idea/
+
+# MacOS system files
+.DS_Store
+
+# Other
+*.rs.bk

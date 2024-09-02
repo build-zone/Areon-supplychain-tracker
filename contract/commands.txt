@@ -1,0 +1,37 @@
+
+//BUILD THE CONTRACT AND CREATE DEPLOY FILES
+cargo concordium build --schema-embed --out dist/<give-name>.wasm.v1 --schema-out dist/schema.bin
+
+
+//DEPLOY SMART CONTRACT
+concordium-client module deploy <file-path-to-build.module> --sender my_wallet.json --name <name-to-give-module> --grpc-ip node.testnet.concordium.com
+(e.g dist/supply_chain_tracker.module.wasm.v1)
+
+
+//INITIATE SMART CONTRACT
+concordium-client contract init <module-name-assigned-during-deploy> --sender my_wallet.json --contract supply_chain_tracker --name <name-to-give-contract-when-initiated> --energy 3000 --grpc-ip node.testnet.concordium.com
+
+
+//UPDATE SMART CONTRACT
+concordium-client contract update <smart-contract-name> --entrypoint <function-name> --energy 3000 --sender my_wallet.json --parameter-json <path-to-file> --schema dist/schema.bin --grpc-ip node.testnet.concordium.com
+
+(--parameter-json is included if the entrypoint is expecting a parameter)            
+
+
+
+//INVOKE SMART CONTRACT
+concordium-client contract invoke <smart-contract-name> --entrypoint <functiopn-name> --energy 3000 --invoker-account my_wallet.json  --parameter-json <path to file> --grpc-ip node.testnet.concordium.com     
+
+(--parameter-json is included if the entrypoint is expecting a parameter )            
+
+//ADD A PRODUCT
+concordium-client contract update supply_chain_tracker_contract3 --entrypoint add_product --energy 3000 --sender my_wallet.json --parameter-json params/add-product.json --schema dist/schema.bin --grpc-ip node.testnet.concordium.com
+
+
+//GET ALL PRODUCT
+concordium-client contract invoke supply_chain_tracker_contract3 --entrypoint get_all_products --energy 3000 --invoker-account my_wallet.json --grpc-ip node.testnet.concordium.com
+
+//GET A PRODUCT
+concordium-client contract invoke supply_chain_tracker_contract3 --entrypoint get_product_details --energy 3000 --invoker-account my_wallet.json  --parameter-json params/product-id.json --grpc-ip node.testnet.concordium.com
+
+9963
