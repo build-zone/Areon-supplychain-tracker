@@ -1,10 +1,10 @@
-# Supply Chain Tracker on Concordium Blockchain
+![Supply Chain Tracker dApp](https://github.com/build-zone/supplychain-tracker/blob/main/src/assets/supplychaintracker.png)
 
 The Supply Chain Tracker is a decentralized application (dApp) built on the Concordium blockchain. It provides a secure and transparent way to manage products and orders within a supply chain, ensuring that all transactions are recorded immutably and can be audited. The app integrates with Concordium's verifier backend to verify account identities and ensure customers can only purchase items available in their location.
 
 ## Useful Resources
 
-- [Website](#) - Frontend to test the porject.
+- [Website](https://supplychaintracker.netlify.app/) - Frontend to test the project.
 - [Demo Video](#) - Watch a demonstration of the Supply Chain Tracker App in action.
 
 ## Features
