@@ -1,0 +1,1 @@
+/Users/mac/Documents/supplychain-tracker/verifier/target/release/supply-chain-verifier: /Users/mac/Documents/supplychain-tracker/verifier/src/handlers.rs /Users/mac/Documents/supplychain-tracker/verifier/src/main.rs /Users/mac/Documents/supplychain-tracker/verifier/src/types.rs
