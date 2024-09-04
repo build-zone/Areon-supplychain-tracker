@@ -516,6 +516,7 @@ const SupplyChain = () => {
   const handleAuthorize = useCallback(
     async (product) => {
       const locationSet = product.location.map((item) => item.value);
+      const loading = toast.loading("Confirming Identity...");
       try {
         const statement = [
           {
@@ -552,13 +553,18 @@ const SupplyChain = () => {
 
         console.log(newAuthToken);
         if (newAuthToken) {
+          toast.success("Identity confirmed", {
+            id: loading,
+          });
           await orderItem(product);
         } else {
           toast.error("Failed to get authorization token");
         }
       } catch (error) {
         console.error("Authorization failed:", error);
-        toast.error("Authorization failed: " + error.message);
+        toast.error("Authorization failed: ", {
+          id: loading,
+        });
       }
       console.log(product);
     },

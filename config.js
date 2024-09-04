@@ -9,8 +9,8 @@ export const DEFAULT_CONTRACT_INDEX = BigInt(10007);
 export const MAX_CONTRACT_EXECUTION_ENERGY = BigInt(30000);
 export const PING_INTERVAL_MS = 5000;
 export const CONTRACT_NAME = "supply_chain_tracker";
-// export const VERIFIER_URL = "https://hublab-2.onrender.com/api";
-export const VERIFIER_URL = "http://localhost:8100/api";
+export const VERIFIER_URL = "https://supplychain-tracker.onrender.com/api";
+// export const VERIFIER_URL = "http://localhost:8100/api";
 
 const WALLET_CONNECT_OPTS = {
   projectId: CONCORDIUM_WALLET_CONNECT_PROJECT_ID,

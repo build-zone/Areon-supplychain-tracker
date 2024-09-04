@@ -12,7 +12,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ChakraProvider>
       <ConnectWalletProvider>
         <App />
-        <Toaster position="top-right" />
+        <Toaster position="bottom-right" />
       </ConnectWalletProvider>
     </ChakraProvider>
   </React.StrictMode>
