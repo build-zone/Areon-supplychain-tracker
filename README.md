@@ -5,7 +5,7 @@ The Supply Chain Tracker is a decentralized application (dApp) built on the Conc
 ## Useful Resources
 
 - [Website](https://supplychaintracker.netlify.app/) - Frontend to test the project.
-- [Demo Video](#) - Watch a demonstration of the Supply Chain Tracker App in action.
+- [Demo Video](https://www.loom.com/share/adfc57161be844bb821cc61993d4e460?sid=5b874a82-15cf-4b9c-82d1-29a150b5729a) - Watch a demonstration of the Supply Chain Tracker App in action.
 
 ## Features
 
@@ -25,7 +25,7 @@ The Supply Chain Tracker is a decentralized application (dApp) built on the Conc
 - **Status:** Enum for tracking product and order statuses, including `Available`, `Ordered`, `Shipped`, `Delivered`, and `Cancelled`.
 
 ### Key Contract Functions
- 
+
 1. **Add Product (`add_product`):** Allows only the contract owner to add new products to the system.
 
 2. **Order Product (`order_product`):** The app will verify the user's identity and location, ensuring that only eligible users can purchase the product.
@@ -36,7 +36,7 @@ The Supply Chain Tracker is a decentralized application (dApp) built on the Conc
 
 5. **Cancel Order (`cancel_order`):** Allows the user who placed an order to cancel it if it hasn't been shipped yet.
 
-7. **Query Functions:** 
+6. **Query Functions:**
    - `get_order_details`: Fetches details of a specific order.
    - `get_all_orders`: Retrieves all orders.
    - `get_product_details`: Fetches details of a specific product.
@@ -45,4 +45,5 @@ The Supply Chain Tracker is a decentralized application (dApp) built on the Conc
    - `get_order_count`: Gets the total number of orders placed.
 
 ### License
+
 This project is licensed under the MIT License - see the `LICENSE.md` file for details.
