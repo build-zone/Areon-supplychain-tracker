@@ -605,7 +605,7 @@ const SupplyChain = () => {
           </Select>
         </div>
         {showCreateProduct ? (
-          <div className="w-full sm:w-2/3 flex flex-col sm:flex-row gap-3">
+          <div className="w-full sm:w-2/3 flex flex-col sm:flex-row gap-3 justify-between items-center">
             <Input
               value={newProductName}
               onChange={(e) => setNewProductName(e.target.value)}
@@ -628,6 +628,7 @@ const SupplyChain = () => {
               }}
               placeholder="Select Country"
               required
+              className="sm:w-[100%]"
             />
             <Button
               onClick={createProduct}
