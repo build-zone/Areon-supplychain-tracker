@@ -438,11 +438,11 @@ fn get_product_count(_ctx: &ReceiveContext, host: &Host<State>) -> ReceiveResult
     Ok(host.state().product_count)
 }
 
-#[receive(
-    contract = "supply_chain_tracker",
-    name = "get_order_count",
-    return_value = "u64"
-)]
-fn get_order_count(_ctx: &ReceiveContext, host: &Host<State>) -> ReceiveResult<u64> {
-    Ok(host.state().order_count)
-}
+// #[receive(
+//     contract = "supply_chain_tracker",
+//     name = "get_order_count",
+//     return_value = "u64"
+// )]
+// fn get_order_count(_ctx: &ReceiveContext, host: &Host<State>) -> ReceiveResult<u64> {
+//     Ok(host.state().order_count)
+// }

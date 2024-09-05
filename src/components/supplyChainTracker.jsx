@@ -149,7 +149,7 @@ const SupplyChain = () => {
         });
       setTimeout(async () => {
         await getProducts();
-      }, 4000);
+      }, 10000);
       return transaction;
     } catch (error) {
       toast.error("Error creating product", {
@@ -257,7 +257,7 @@ const SupplyChain = () => {
         });
       setTimeout(async () => {
         await getAllOrders();
-      }, 4000);
+      }, 10000);
       return transaction;
     } catch (error) {
       toast.error("Error ordering product", {
@@ -318,7 +318,7 @@ const SupplyChain = () => {
       }));
       setTimeout(async () => {
         await getAllOrders();
-      }, 4000);
+      }, 10000);
       return transaction;
     } catch (error) {
       setActionLoadingStates((prev) => ({
@@ -383,7 +383,7 @@ const SupplyChain = () => {
       }));
       setTimeout(async () => {
         await getAllOrders();
-      }, 4000);
+      }, 10000);
       return transaction;
     } catch (error) {
       setActionLoadingStates((prev) => ({
@@ -447,7 +447,7 @@ const SupplyChain = () => {
       }));
       setTimeout(async () => {
         await getAllOrders();
-      }, 4000);
+      }, 10000);
       return transaction;
     } catch (error) {
       setActionLoadingStates((prev) => ({
